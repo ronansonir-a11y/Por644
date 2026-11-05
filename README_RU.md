@@ -1,4 +1,4 @@
-# Ultimate Game RE & Modding Suite 2.0
+# Ultimate Game RE & Modding Suite 2.1
 
 Набор для разрешённой интероперабельности, офлайн-моддинга и изолированного сохранения игр. Подробности, схемы и ссылки на источники — в [русском руководстве](docs/ULTIMATE_GAME_RE_GUIDE_RU.md).
 
@@ -9,6 +9,8 @@
 | Файл | Назначение |
 |---|---|
 | `tools/re_swiss_knife.py` | Самостоятельный Python CLI: анализ, AOB, GoldHEN-кандидат, SELF/NSO и FMF. |
+| `tools/granny_apk_recon.py` | Автономная read-only разведка APK и split-бандлов; только стандартная библиотека Python. |
+| `docs/GRANNY_PS4_RECON_RU.md` | Досье Granny → PS4: источники, PlayMaker, четыре маршрута и ограничения сканера. |
 | `docs/ULTIMATE_GAME_RE_GUIDE_RU.md` | Руководство, оговорки и проверенные источники. |
 | `templates/goldhen_cheat_sample.json` | Искусственный пример JSON, не чит для настоящей игры. |
 | `templates/android_arm64_hook.cpp` | Явно вызываемые своим приложением patch API и 16-байтовый ARM64 jump; не инжектор и не полноценный trampoline. |
@@ -107,7 +109,19 @@ python -m unittest discover -s tests -v
 
 Сервер — собственный синтетический REST/WebSocket/UDP пример, а не backend реальной игры. Для LAN требуется явный RFC1918 IPv4, `--allow-lan` и изоляция. Подробности — в руководстве.
 
-## 6. Архив
+## 6. Granny → PS4: досье и APK/split-разведка
+
+В [досье](docs/GRANNY_PS4_RECON_RU.md) приведены исследованные сборки, ограничения PlayMaker/IL2CPP, четыре маршрута и предложенное управление DS4. Исходники старой реконструкции и сторонние данные об Android 1.8.12 **не устанавливают** версию или состав вашего APK. Устройство и 60 FPS не проверялись.
+
+```powershell
+# Отдельный APK, каталог base + splits либо .apks/.xapk/.zip:
+python tools/granny_apk_recon.py "D:\Copies\GrannySplits" --require-granny
+python tools/granny_apk_recon.py "D:\Copies\granny.xapk" --json > granny-recon.json
+```
+
+Сканер работает отдельно от других зависимостей, ничего не устанавливает и не меняет входные файлы. Он ограниченно читает manifest, APK, ELF-заголовки и признаки Unity/IL2CPP/Mono/PlayMaker/A*/ввода; найденные строки — не доказательство объектов/логики. Split-версии объединяются только при согласованных манифестах; подписи и полнота набора **не** проверяются, OBB и `toc.pb` не разбираются. Негативные результаты остаются `unknown`. Для вложенных APK могут создаваться удаляемые временные файлы; пределы, приватность и коды выхода описаны в досье.
+
+## 7. Архив
 
 Полный `Ultimate_Game_RE_&_Modding_Suite.zip` содержит исходники и библиотеку по пути `build/android_arm64/liboffline_patch.so`. Для пересборки с уже собранной NDK-библиотекой:
 

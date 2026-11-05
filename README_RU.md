@@ -1,24 +1,24 @@
-# Ultimate Game RE & Modding Suite
+# Ultimate Game RE & Modding Suite 2.0
 
-Набор для законной интероперабельности, офлайн-моддинга и экспериментов по сохранению игр. Полное [русское руководство](docs/ULTIMATE_GAME_RE_GUIDE_RU.md) содержит ссылки на исследованные GitHub-исходники, схемы памяти, методики для PS4/Android и ограничения.
+Набор для разрешённой интероперабельности, офлайн-моддинга и изолированного сохранения игр. Подробности, схемы и ссылки на источники — в [русском руководстве](docs/ULTIMATE_GAME_RE_GUIDE_RU.md).
 
-**Важно:** не использовать против действующих коммерческих мультиплеерных сервисов, античита или DRM. Работайте с разрешёнными копиями и резервными копиями. Ни GoldHEN, ни NDK/телефон, ни конкретные игры здесь не проверялись; готового универсального портирования и обхода защит нет.
+**Границы:** не применять против действующих коммерческих мультиплеерных сервисов, античита или DRM. Никаких ключей, расшифровки retail SELF и автоматического внедрения нет. Работайте с разрешёнными копиями и резервными копиями. GoldHEN и Android-устройство не проверялись; готового универсального портирования нет.
 
 ## Состав
 
 | Файл | Назначение |
 |---|---|
-| `tools/re_swiss_knife.py` | Самостоятельный CLI: признаки движков/форматов; AOB поиск/генерация; офлайн-генератор патчей. |
-| `docs/ULTIMATE_GAME_RE_GUIDE_RU.md` | Энциклопедия, архитектура, инструкции и источники. |
-| `templates/goldhen_cheat_sample.json` | **Искусственный пример**, не готовый чит настоящей игры. |
-| `templates/android_arm64_hook.cpp` | Явно вызываемый своим приложением memory-patch API, не инжектор/trampoline. |
-| `templates/local_ps4_server_emulator.py` | Синтетический локальный REST/WebSocket/UDP сервер; не протокол PSN или реальной игры. |
-| `tests/` | Автотесты и локальная схема выдаваемого подмножества GoldHEN JSON. |
-| `tools/package_suite.py`, `.github/workflows/` | Воспроизводимая упаковка и CI. |
+| `tools/re_swiss_knife.py` | Самостоятельный Python CLI: анализ, AOB, GoldHEN-кандидат, SELF/NSO и FMF. |
+| `docs/ULTIMATE_GAME_RE_GUIDE_RU.md` | Руководство, оговорки и проверенные источники. |
+| `templates/goldhen_cheat_sample.json` | Искусственный пример JSON, не чит для настоящей игры. |
+| `templates/android_arm64_hook.cpp` | Явно вызываемые своим приложением patch API и 16-байтовый ARM64 jump; не инжектор и не полноценный trampoline. |
+| `build/android_arm64/liboffline_patch.so` | Android ARM64 библиотека внутри полного ZIP; не содержит PS4-байтов и не проверена на телефоне. |
+| `templates/local_ps4_server_emulator.py` | Синтетический локальный сервер; не протокол PSN или реальной игры. |
+| `tests/`, `tools/package_suite.py`, `.github/workflows/` | Тесты, воспроизводимая упаковка и CI. |
 
-## 1. Windows: установка и анализ
+## 1. Установка и анализ
 
-Нужен Python 3.10+. В PowerShell из распакованного каталога:
+Python 3.10+. PowerShell из распакованного каталога:
 
 ```powershell
 py -m venv .venv
@@ -28,27 +28,18 @@ python tools/re_swiss_knife.py --analyze "D:\Games\MyOfflineGame"
 python tools/re_swiss_knife.py --analyze "D:\Copies\game.apk" --json
 ```
 
-Если PowerShell блокирует активацию, используйте `.venv\Scripts\python.exe` вместо `python` без изменения системных политик. На Linux/macOS: `python3 -m venv .venv`, `source .venv/bin/activate` и те же команды. Capstone нужен для генерации сигнатур и дизассемблирования; без него поиск байтов и анализ работают с явным предупреждением.
+Если PowerShell блокирует активацию, используйте `.venv\Scripts\python.exe`. Linux/macOS: `python3 -m venv .venv`, `source .venv/bin/activate`. Capstone нужен для дизассемблирования и создания AOB; `zstandard` — только для zstd-потоков FMF. Поиск байтов, zlib и raw LZ4 работают без C-расширений.
 
-Распознаются Unity Mono/IL2CPP, Unreal (IoStore **не означает только UE5**), Source, Frostbite, Godot, Ren'Py, признаки возможного custom-движка; ELF/PE/Mach-O/NSO/PS4 SELF/FSELF, заголовки CPU, некоторые compiler/symbol/packer-маркеры. Вывод вероятностный. `cryptid` — признак конкретного Mach-O slice, а не универсальный детектор DRM. NSO magic не доказывает CPU; SELF/FSELF magic не доказывает тип подписи или степень шифрования. APK/IPA читаются как ZIP без распаковки, архивы не дешифруются. См. руководство об ограничениях.
+Распознаются Unity Mono/IL2CPP, Unreal (IoStore **не означает только UE5**), Source, Frostbite, Godot, Ren'Py; ELF/PE/Mach-O/NSO/SELF, признаки CPU и некоторые compiler/packer-маркеры. Вывод эвристический. NSO magic не доказывает CPU; SELF magic не доказывает подлинность и отсутствие шифрования. APK/IPA читаются как ZIP без извлечения и расшифровки.
 
-## 2. AOB: безопасный учебный файл
+## 2. AOB и GoldHEN
+
+Создайте **учебный** raw-файл (не настоящая игра):
 
 ```powershell
 python -c "from pathlib import Path; Path('demo.bin').write_bytes(bytes.fromhex('48 89 C0 E8 11 22 33 44 90 C3'))"
 python tools/re_swiss_knife.py --scan-aob demo.bin --arch x86_64 --pattern "48 89 C0 E8 ?? ?? ?? ??" --context 8
 python tools/re_swiss_knife.py --make-aob demo.bin --arch x86_64 --offset 0x0 --length 8
-```
-
-`--scan-aob` печатает все совпадения; `--max-matches 100` ограничит вывод, `--context 0` выключит дизассемблирование. `--make-aob` требует известную границу инструкции; x86 относительные ветви и memory displacement маскируются, ARM64-инструкции со смешанными смещениями могут целиком становиться wildcard. Проверяйте уникальность в каждой версии и реальное назначение кода.
-
-**File offset, RVA и runtime address — разные величины.** RVA печатается только для однозначного отображения по заголовкам ELF/PE/Mach-O; это не адрес запущенного процесса и не подтверждённый GoldHEN offset. Для SELF/NSO/fat Mach-O автоматического преобразования нет.
-
-## 3. PS4 Pro + GoldHEN: генерация (только офлайн)
-
-Следующая команда использует **синтетический `demo.bin` из предыдущего раздела**. Полученный JSON не является читом для реальной игры; `CUSA12345` и offset вымышлены:
-
-```powershell
 python tools/re_swiss_knife.py --generate-patch demo.bin --arch x86_64 --offset 0x0 `
   --off "48 89 C0" --on "90 90 90" --title-id CUSA12345 --version 01.00 `
   --goldhen-offset 0x1000 --out-dir demo-output
@@ -56,47 +47,73 @@ python demo-output/offline_file_patcher.py demo.bin --output demo-patched.bin
 python demo-output/offline_file_patcher.py demo-patched.bin --undo --output demo-restored.bin
 ```
 
-Для настоящего разрешённого офлайн-эксперимента нужны точный PS4 x86-64 ELF или самостоятельно проверенный raw dump (не зашифрованный SELF), CUSA/версия/модуль, оригинальные байты и **отдельно установленный** GoldHEN memory offset. CLI проверяет `--off` и не выбирает неоднозначный `--aob`, но самостоятельно не проверяет происхождение ELF или offset в памяти консоли. Установка JSON на своей консоли: обычно `/data/GoldHEN/cheats/json/`; документация меню также указывает `/user/data/GoldHEN/cheats/json/` — проверяйте mount и версию GoldHEN. См. руководство и источники.
+Для **валидного PS4 x86-64 ELF64** параметр `--goldhen-offset` теперь можно опустить. CLI проверяет весь патч в единственном file-backed `PT_LOAD` и печатает:
 
-В upstream не найдена опубликованная формальная JSON Schema. Тесты строго валидируют **локальную схему поддерживаемого подмножества**, сверенную с реальными JSON и кодом менеджера; это не доказательство совместимости всех вариантов GoldHEN или работоспособности на PS4.
-
-Для любого другого собственного офлайн-файла используйте `--file-only`: требуется `--offset` или `--aob`, а также `--off`, `--on`, `--out-dir`; создаётся только копирующий файл-патчер, без фиктивного PS4 JSON. Например, на том же учебном `demo.bin`:
-
-```powershell
-python tools/re_swiss_knife.py --generate-patch demo.bin --file-only --offset 0x8 --off "90 C3" --on "90 90" --out-dir file-demo
-python file-demo/offline_file_patcher.py demo.bin --output demo-file-patched.bin
+```text
+base_vaddr = min(PT_LOAD.p_vaddr)
+vaddr = p_vaddr + (file_offset - p_offset)
+кандидат = vaddr - base_vaddr
 ```
 
-Патчер проверяет SHA-256 и байты, создаёт только новый файл и поддерживает `--undo`. Он не сохраняет подписи/целостность защищённых пакетов.
+Данные и SHA-256 записываются в `patch_metadata.json`; это **не** часть формата GoldHEN. В GoldHEN-каталог копируют только `CUSAXXXXX_01.00.json` (например, `CUSA12345_01.00.json`), обычно в `/data/GoldHEN/cheats/json/`; документация также указывает `/user/data/GoldHEN/cheats/json/` — проверяйте mount.
 
-## 4. Honor X8c / Android ARM64
+**Кандидат не подтверждает runtime base, ASLR, версию GoldHEN или совместимость сборки.** Его необходимо независимо проверить на своей консоли. При пересечении сегментов или выходе за file-backed range CLI отказывает; `--goldhen-offset` остаётся ручным override и обязателен для самостоятельно проверенного raw dump. Вместо `--offset` можно использовать уникальный `--aob` и `--match-delta`. CLI проверяет `--off`, но не может доказать происхождение ELF или назначение кода. Никакой опубликованной официальной GoldHEN JSON Schema не найдено: тестируется локальная схема поддерживаемого подмножества.
 
-`android_patch_template.cpp` компилируется NDK для `arm64-v8a`, не содержит PS4/x86 байтов и не внедряется в чужой процесс. Приложение-владелец должно само вызвать API с отдельно проверенными ARM64 адресом/байтами и permissions. Нужны остановка затронутых потоков, корректные границы страниц, W^X и очистка instruction cache; см. комментарии шаблона и руководство. Шаблон компилировался и проверялся на host, но **не** на телефоне или Android NDK.
+Для других своих файлов используйте `--generate-patch ... --file-only`: создаётся только копирующий патчер с проверкой SHA-256, без фиктивного PS4 JSON. Исходник и существующий выход не перезаписываются.
+
+## 3. PS4 SELF/FSELF, Switch NSO и FMF
+
+```powershell
+python tools/re_swiss_knife.py --unpack-binary "D:\Copies\eboot.bin" --output eboot.elf
+python tools/re_swiss_knife.py --unpack-binary "D:\Copies\main.nso" --output main.elf
+python tools/re_swiss_knife.py --scan-aob main.elf --arch arm64 --pattern "1F 20 03 D5" --context 8
+python tools/re_swiss_knife.py --fmf-info "D:\Mods\skin.fmf" --json
+python tools/re_swiss_knife.py --fmf-unpack "D:\Mods\skin.fmf" --output skin-unpacked
+python tools/re_swiss_knife.py --fix-mod-case skin-unpacked --dry-run
+python tools/re_swiss_knife.py --fix-mod-case skin-unpacked --output skin-lowercase
+```
+
+SELF: обрабатываются описанные незашифрованные blocked entries и одиночные zlib-потоки; сегменты восстанавливаются на ELF `p_offset`. Флаг шифрования, повреждение или неподдерживаемый layout дают отказ; retail не расшифровывается. Наличие plaintext не является доказательством подлинности.
+
+NSO0: raw LZ4 декодируется чистым Python, валидируются размеры и заявленные SHA-256; в синтетическом ELF64 сохраняются VA, права и BSS. **ARM64 предполагается, но NSO сам CPU не указывает.** Результат — для сканирования, не гарантия запуска; файловые offset результата отличаются от NSO.
+
+FMF: поддерживаются известные legacy UTF-16/2020-style каталоги, включая zlib/zstd и zstd-каталог с префиксом длины. Неподдерживаемые версии могут не читаться. Если индекс отсутствует, извлекаются только найденные потоки с искусственными именами `stream_...`; `--carve` явно включает такой приблизительный режим для неподдерживаемого индекса. Он не восстанавливает имена или структуру и может пропустить данные. Компрессия не является расшифровкой. В дополнение к синтетическим тестам проверен один открытый FM23-совместимый font-мод: 86 файлов и `config.xml`; это не гарантия поддержки всех FM23/Touch архивов.
+
+`--fix-mod-case` создаёт **новую копию** (по умолчанию соседнюю `имя_lowercase`), не изменяет исходник; обнаруживает коллизии и symlink. В `config.xml` нормализуются явные файловые атрибуты, а `from`/`to` — только когда совпадают с локальным путём/именем файла (в том числе без расширения); неразрешённые виртуальные ID, прочие значения, URL и entity-ссылки сохраняются. Проверяйте результат вручную. Распаковка и восстановление ограничены 1024 МиБ; при необходимости задайте `--max-output-mb N` (1–16384). Существующие выходы не перезаписываются.
+
+## 4. Android ARM64
+
+Шаблон предоставляет `apply_offline_patch`, `encode_arm64_absolute_jump` и `apply_offline_arm64_jump`. Jump: `51 00 00 58` (`LDR X17,#8`), `20 02 1F D6` (`BR X17`), затем 64-битный little-endian адрес. Он занимает 16 байт и портит X17; **не** переносит вытесненные инструкции и не является полным trampoline. Адрес и оригинальные ARM64-байты нужно определить отдельно в собственном процессе.
+
+Патч выравнивает страницы, проверяет ожидаемые байты, меняет permissions, очищает instruction cache и восстанавливает права. По умолчанию действует W^X; `-DOFFLINE_PATCH_ALLOW_RWX` — отдельный небезопасный opt-in, который может отклонить система. `-DOFFLINE_PATCH_ENABLE_CONSTRUCTOR` добавляет пустую точку инициализации, не ставящую патч автоматически. Остановите все затронутые потоки; в случае `-4` байты уже изменены, но права не восстановлены.
 
 ```bash
 "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++" \
-  -std=c++17 -fPIC -shared templates/android_arm64_hook.cpp -o liboffline_patch.so
+  -std=c++17 -O2 -fPIC -shared -fno-exceptions -fno-rtti -nostdlib++ \
+  templates/android_arm64_hook.cpp -o liboffline_patch.so
 ```
 
-На Windows используйте соответствующий путь `prebuilt\windows-x86_64\bin\aarch64-linux-android24-clang++.cmd`. Turnip/Vulkan и перенос OpenOrbis зависят от конкретного драйвера, ABI и приложения; прямое выполнение PC/PS4-бинарника не обещается.
+Библиотека в проверенном локальном ZIP собрана AArch64 toolchain из зеркала NDK r23b (23.1.7779620), Clang 12, для API 24, её ELF64/ET_DYN/EM_AARCH64 проверены; на Android она не запускалась. Linux CI настроен искать установленный NDK, собирать `build/android_arm64/liboffline_patch.so` через NDK Clang и отказывать, если NDK/ELF-проверка не прошли. Результат конкретного CI запуска следует проверять отдельно.
 
-## 5. Локальный сервер сохранения
+## 5. Локальный сервер и тесты
 
 ```powershell
 python templates/local_ps4_server_emulator.py
 # В отдельном терминале:
 Invoke-RestMethod http://127.0.0.1:8765/health
-Invoke-RestMethod -Method Post -ContentType 'application/json' -Body '{"type":"move","seq":1,"dx":1,"dy":0}' -Uri http://127.0.0.1:8765/input
-```
-
-Демонстрация также поддерживает `ws://127.0.0.1:8765/ws` и UDP `127.0.0.1:8766`; примеры клиентов — в руководстве. На LAN нужно явно указать конкретный RFC1918 IPv4, например `--bind 192.168.1.20 --allow-lan`, и изолировать сеть/firewall. Нет TLS, аккаунтов или сохранения состояния. Для подключения собственного клиента необходимо реализовать свой совместимый протокол; retail-игры не заработают с этим скелетом автоматически.
-
-## 6. Тесты и архив
-
-```powershell
 python -m pip install -r requirements-dev.txt
 python -m unittest discover -s tests -v
-python tools/package_suite.py
 ```
 
-Архив `Ultimate_Game_RE_&_Modding_Suite.zip` создаётся в корне. Повторная сборка: `python tools/package_suite.py --force`; файл не будет заменён без явного флага. В GitHub Actions после успешных тестов на Linux/Windows откройте job `Package suite` и скачайте артефакт `Ultimate_Game_RE_&_Modding_Suite`; контейнер GitHub может содержать внутри ещё один одноимённый ZIP. Никакие игры, ключи, проприетарные SDK, сертификаты и сохранения в набор не входят.
+Сервер — собственный синтетический REST/WebSocket/UDP пример, а не backend реальной игры. Для LAN требуется явный RFC1918 IPv4, `--allow-lan` и изоляция. Подробности — в руководстве.
+
+## 6. Архив
+
+Полный `Ultimate_Game_RE_&_Modding_Suite.zip` содержит исходники и библиотеку по пути `build/android_arm64/liboffline_patch.so`. Для пересборки с уже собранной NDK-библиотекой:
+
+```powershell
+python tools/package_suite.py --force --android-so build/android_arm64/liboffline_patch.so
+python -m zipfile -t 'Ultimate_Game_RE_&_Modding_Suite.zip'
+```
+
+Без `--android-so` упаковщик явно создаёт **source-only** архив. В GitHub Actions job `Build Android ARM64 and package suite` требует реальную NDK-сборку и включает её в артефакт `Ultimate_Game_RE_&_Modding_Suite`. Игры, ключи, проприетарные SDK, сертификаты и сохранения в архив не входят.

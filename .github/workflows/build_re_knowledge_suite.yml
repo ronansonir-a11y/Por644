@@ -34,6 +34,8 @@ jobs:
           cache: pip
       - name: Install test and disassembly dependencies
         run: python -m pip install -r requirements-dev.txt
+      - name: Check standalone APK scanner without site packages
+        run: python -I tools/granny_apk_recon.py --help
       - name: Run tests
         run: python -m unittest discover -s tests -v
 
@@ -85,7 +87,7 @@ jobs:
         run: |
           python tools/package_suite.py --force --android-so build/android_arm64/liboffline_patch.so
           python -m zipfile -t 'Ultimate_Game_RE_&_Modding_Suite.zip'
-          python -c 'import zipfile; from pathlib import Path; z=zipfile.ZipFile("Ultimate_Game_RE_&_Modding_Suite.zip"); assert z.read("build/android_arm64/liboffline_patch.so") == Path("build/android_arm64/liboffline_patch.so").read_bytes()'
+          python -c 'import zipfile; from pathlib import Path; z=zipfile.ZipFile("Ultimate_Game_RE_&_Modding_Suite.zip"); assert z.read("build/android_arm64/liboffline_patch.so") == Path("build/android_arm64/liboffline_patch.so").read_bytes(); assert {"tools/granny_apk_recon.py", "docs/GRANNY_PS4_RECON_RU.md", "tests/test_granny_apk_recon.py"}.issubset(z.namelist())'
       - name: Upload downloadable suite
         uses: actions/upload-artifact@v4
         with:

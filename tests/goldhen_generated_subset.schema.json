@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Locally documented subset emitted by re_swiss_knife; not an official GoldHEN schema",
+  "$comment": "Based on GoldHEN_Cheat_Repository json/CUSA00002_01.00.json at 3a4ca53414ed6653d091d9dcd82c838333585d2f and GoldHEN_Cheat_Manager source/cheats.c at 20b258b6773508eee8c1507518e5c718a57dd675. Other valid GoldHEN files can use additional fields and mod types.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "id", "version", "process", "mods", "credits"],
+  "properties": {
+    "name": {"type": "string", "minLength": 1},
+    "id": {"type": "string", "pattern": "^CUSA[0-9]{5}$"},
+    "version": {"type": "string", "pattern": "^[0-9]{2}\\.[0-9]{2}$"},
+    "process": {"type": "string", "pattern": "^[^/\\\\]+$"},
+    "mods": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "type", "memory"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "type": {"const": "checkbox"},
+          "memory": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["offset", "on", "off"],
+              "properties": {
+                "offset": {"type": "string", "pattern": "^[0-9A-F]+$"},
+                "on": {"type": "string", "pattern": "^([0-9A-F]{2})+$"},
+                "off": {"type": "string", "pattern": "^([0-9A-F]{2})+$"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "credits": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+  }
+}

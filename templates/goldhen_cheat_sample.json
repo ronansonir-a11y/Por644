@@ -1,0 +1,22 @@
+{
+  "name": "Example only - not a real game cheat",
+  "id": "CUSA12345",
+  "version": "01.00",
+  "process": "eboot.bin",
+  "mods": [
+    {
+      "name": "Example patch - verify address and bytes first",
+      "type": "checkbox",
+      "memory": [
+        {
+          "offset": "1000",
+          "on": "9090",
+          "off": "89C0"
+        }
+      ]
+    }
+  ],
+  "credits": [
+    "Example"
+  ]
+}

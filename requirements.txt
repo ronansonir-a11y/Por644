@@ -1,0 +1,2 @@
+# Optional for fingerprinting and byte search; required for disassembly/signature generation.
+capstone>=5.0.1,<6

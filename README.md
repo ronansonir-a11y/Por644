@@ -1,1 +1,5 @@
-# Por644
+# Game RE & Modding Suite
+
+Start with [README_RU.md](README_RU.md) and the [Russian engineering guide](docs/ULTIMATE_GAME_RE_GUIDE_RU.md).
+
+For authorized interoperability, offline single-player modding and isolated preservation experiments only. The local server is a synthetic example, not a PSN service or a ready-made backend for any real game.
